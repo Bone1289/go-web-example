@@ -2,11 +2,16 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/graphql-go/graphql"
+	"github.com/mitchellh/mapstructure"
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"time"
 )
 
 type Author struct {
@@ -90,9 +95,37 @@ func LoginEndpoint(response http.ResponseWriter, request *http.Request) {
 				response.Write([]byte(`{ "message": "invalid password" }`))
 				return
 			}
-			json.NewEncoder(response).Encode(author)
+			claims := CustomJWTClaims{
+				Id: author.Id,
+				StandardClaims: jwt.StandardClaims{
+					ExpiresAt: time.Now().Local().Add(time.Hour).Unix(),
+					Issuer:    "Go Test",
+				},
+			}
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+			tokenString, _ := token.SignedString(JwtSecret)
+			response.Write([]byte(`{ "token": "` + tokenString + `" }`))
 			return
 		}
 	}
 	response.Write([]byte(`{ "message": "invalid username" }`))
+}
+
+func ValidateJWT(t string) (interface{}, error) {
+	token, err := jwt.Parse(t, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method %v", token.Header["alg"])
+		}
+		return JwtSecret, nil
+	})
+	if err != nil {
+		return nil, errors.New(`{ "message": "` + err.Error() + `"}`)
+	}
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		var tokenData CustomJWTClaims
+		mapstructure.Decode(claims, &tokenData)
+		return tokenData, nil
+	} else {
+		return nil, errors.New(`{ "message": "invalid token" }`)
+	}
 }

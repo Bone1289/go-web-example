@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/graphql-go/graphql"
 	"github.com/mitchellh/mapstructure"
@@ -103,13 +105,19 @@ var rootMutation *graphql.Object = graphql.NewObject(graphql.ObjectConfig{
 				var article Article
 				mapstructure.Decode(params.Args["article"], &article)
 
+				decoded, err := ValidateJWT(params.Context.Value("token").(string))
+				if err != nil {
+					return nil, err
+				}
+
 				validate := validator.New()
-				err := validate.Struct(article)
+				err = validate.Struct(article)
 				if err != nil {
 					return nil, err
 				}
 
 				article.Id = uuid.Must(uuid.NewV4()).String()
+				article.Author = decoded.(CustomJWTClaims).Id
 				articles = append(articles, article)
 				return article, nil
 			},
@@ -177,6 +185,13 @@ var rootMutation *graphql.Object = graphql.NewObject(graphql.ObjectConfig{
 	},
 })
 
+type CustomJWTClaims struct {
+	Id string `json:"id"`
+	jwt.StandardClaims
+}
+
+var JwtSecret []byte = []byte("testtest")
+
 type GraphQLPayload struct {
 	Query     string                 `json:"query"`
 	Variables map[string]interface{} `json:"variables"`
@@ -196,6 +211,7 @@ func main() {
 			Schema:         schema,
 			RequestString:  payload.Query,
 			VariableValues: payload.Variables,
+			Context:        context.WithValue(context.Background(), "token", request.URL.Query().Get("token")),
 		})
 		json.NewEncoder(response).Encode(result)
 	})
