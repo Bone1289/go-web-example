@@ -5,15 +5,16 @@ import (
 	"github.com/graphql-go/graphql"
 	uuid "github.com/satori/go.uuid"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 )
 
 type Author struct {
-	Id        string `json:"id,omitempty"`
-	Firstname string `json:"firstname,omitempty"`
-	Lastname  string `json:"lastname,omitempty"`
-	Username  string `json:"username,omitempty"`
-	Password  string `json:"password,omitempty"`
+	Id        string `json:"id,omitempty" validate:"omitempty,uuid"`
+	Firstname string `json:"firstname,omitempty" validate:"required"`
+	Lastname  string `json:"lastname,omitempty" validate:"required"`
+	Username  string `json:"username,omitempty" validate:"required"`
+	Password  string `json:"password,omitempty" validate:"required,gte=4"`
 }
 
 var authorType *graphql.Object = graphql.NewObject(graphql.ObjectConfig{
@@ -62,6 +63,14 @@ func RegisterEndpoint(response http.ResponseWriter, request *http.Request) {
 	response.Header().Add("content-type", "application/json")
 	var author Author
 	json.NewDecoder(request.Body).Decode(&author)
+	validate := validator.New()
+	err := validate.Struct(author)
+
+	if err != nil {
+		response.WriteHeader(500)
+		response.Write([]byte(`{ "message": "` + err.Error() + `" }`))
+		return
+	}
 	hash, _ := bcrypt.GenerateFromPassword([]byte(author.Password), 10)
 	author.Id = uuid.Must(uuid.NewV4()).String()
 	author.Password = string(hash)

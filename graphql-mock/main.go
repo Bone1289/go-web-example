@@ -6,6 +6,8 @@ import (
 	"github.com/graphql-go/graphql"
 	"github.com/mitchellh/mapstructure"
 	uuid "github.com/satori/go.uuid"
+	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 )
 
@@ -100,9 +102,58 @@ var rootMutation *graphql.Object = graphql.NewObject(graphql.ObjectConfig{
 			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
 				var article Article
 				mapstructure.Decode(params.Args["article"], &article)
+
+				validate := validator.New()
+				err := validate.Struct(article)
+				if err != nil {
+					return nil, err
+				}
+
 				article.Id = uuid.Must(uuid.NewV4()).String()
 				articles = append(articles, article)
 				return article, nil
+			},
+		},
+		"updateAuthor": &graphql.Field{
+			Type: graphql.NewList(authorType),
+			Args: graphql.FieldConfigArgument{
+				"author": &graphql.ArgumentConfig{
+					Type: authorInputType,
+				},
+			},
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+				var changes Author
+				mapstructure.Decode(params.Args["author"], &changes)
+				validate := validator.New()
+				err := validate.StructExcept(changes, "Firstname", "Lastname", "Username", "Password", "Id")
+				if err != nil {
+					return nil, err
+				}
+
+				for index, author := range authors {
+					if author.Id == changes.Id {
+						if changes.Firstname != "" {
+							author.Firstname = changes.Firstname
+						}
+						if changes.Lastname != "" {
+							author.Lastname = changes.Lastname
+						}
+						if changes.Username != "" {
+							author.Username = changes.Username
+						}
+						if changes.Password != "" {
+							err = validate.Var(changes.Password, "gte=4")
+							if err != nil {
+								return nil, err
+							}
+							hash, _ := bcrypt.GenerateFromPassword([]byte(changes.Password), 10)
+							author.Password = string(hash)
+						}
+						authors[index] = author
+						return authors, nil
+					}
+				}
+				return nil, nil
 			},
 		},
 		"deleteAuthor": &graphql.Field{

@@ -3,10 +3,10 @@ package main
 import "github.com/graphql-go/graphql"
 
 type Article struct {
-	Id      string `json:"id,omitempty"`
-	Author  string `json:"author,omitempty"`
-	Title   string `json:"title,omitempty"`
-	Content string `json:"content,omitempty"`
+	Id      string `json:"id,omitempty" validate:"omitempty,uuid"`
+	Author  string `json:"author,omitempty" validate:"isdefault"`
+	Title   string `json:"title,omitempty" validate:"required"`
+	Content string `json:"content,omitempty" validate:"required"`
 }
 
 var articleType *graphql.Object = graphql.NewObject(graphql.ObjectConfig{
