@@ -1,6 +1,12 @@
 package main
 
-import "github.com/graphql-go/graphql"
+import (
+	"encoding/json"
+	"github.com/graphql-go/graphql"
+	uuid "github.com/satori/go.uuid"
+	"golang.org/x/crypto/bcrypt"
+	"net/http"
+)
 
 type Author struct {
 	Id        string `json:"id,omitempty"`
@@ -51,3 +57,33 @@ var authorInputType *graphql.InputObject = graphql.NewInputObject(graphql.InputO
 		},
 	},
 })
+
+func RegisterEndpoint(response http.ResponseWriter, request *http.Request) {
+	response.Header().Add("content-type", "application/json")
+	var author Author
+	json.NewDecoder(request.Body).Decode(&author)
+	hash, _ := bcrypt.GenerateFromPassword([]byte(author.Password), 10)
+	author.Id = uuid.Must(uuid.NewV4()).String()
+	author.Password = string(hash)
+	authors = append(authors, author)
+	json.NewEncoder(response).Encode(authors)
+}
+
+func LoginEndpoint(response http.ResponseWriter, request *http.Request) {
+	response.Header().Add("content-type", "application/json")
+	var data Author
+	json.NewDecoder(request.Body).Decode(&data)
+	for _, author := range authors {
+		if author.Username == data.Username {
+			err := bcrypt.CompareHashAndPassword([]byte(author.Password), []byte(data.Password))
+			if err != nil {
+				response.WriteHeader(500)
+				response.Write([]byte(`{ "message": "invalid password" }`))
+				return
+			}
+			json.NewEncoder(response).Encode(author)
+			return
+		}
+	}
+	response.Write([]byte(`{ "message": "invalid username" }`))
+}

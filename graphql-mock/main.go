@@ -148,5 +148,7 @@ func main() {
 		})
 		json.NewEncoder(response).Encode(result)
 	})
+	router.HandleFunc("/login", LoginEndpoint).Methods("POST")
+	router.HandleFunc("/author", RegisterEndpoint).Methods("POST")
 	http.ListenAndServe(":12345", router)
 }
