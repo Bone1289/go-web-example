@@ -16,7 +16,16 @@ var articleType *graphql.Object = graphql.NewObject(graphql.ObjectConfig{
 			Type: graphql.String,
 		},
 		"author": &graphql.Field{
-			Type: graphql.String,
+			Type: authorType,
+			Resolve: func(params graphql.ResolveParams) (interface{}, error) {
+				article := params.Source.(Article)
+				for _, author := range authors {
+					if author.Id == article.Author {
+						return author, nil
+					}
+				}
+				return nil, nil
+			},
 		},
 		"title": &graphql.Field{
 			Type: graphql.String,
