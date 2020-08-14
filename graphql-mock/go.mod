@@ -3,8 +3,9 @@ module github.com/Bone1289/go-web-example/graphql-mock
 go 1.14
 
 require (
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-playground/universal-translator v0.17.0 // indirect
+	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.4
 	github.com/graphql-go/graphql v0.7.9
 	github.com/leodido/go-urn v1.2.0 // indirect

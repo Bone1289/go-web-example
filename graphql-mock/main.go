@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/graphql-go/graphql"
 	"github.com/mitchellh/mapstructure"
@@ -119,7 +120,7 @@ var rootMutation *graphql.Object = graphql.NewObject(graphql.ObjectConfig{
 				article.Id = uuid.Must(uuid.NewV4()).String()
 				article.Author = decoded.(CustomJWTClaims).Id
 				articles = append(articles, article)
-				return article, nil
+				return articles, nil
 			},
 		},
 		"updateAuthor": &graphql.Field{
@@ -217,5 +218,31 @@ func main() {
 	})
 	router.HandleFunc("/login", LoginEndpoint).Methods("POST")
 	router.HandleFunc("/author", RegisterEndpoint).Methods("POST")
-	http.ListenAndServe(":12345", router)
+
+	headers := handlers.AllowedHeaders(
+		[]string{
+			"X-Requested-With",
+			"Content-Type",
+			"Authorization",
+		},
+	)
+
+	methods := handlers.AllowedMethods(
+		[]string{
+			"GET",
+			"POST",
+			"PUT",
+			"DELETE",
+		},
+	)
+
+	origins := handlers.AllowedOrigins(
+		[]string{
+			"*",
+		},
+	)
+	http.ListenAndServe(
+		":12345",
+		handlers.CORS(headers, methods, origins)(router),
+	)
 }
